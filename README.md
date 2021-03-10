@@ -8,10 +8,13 @@
 <p>A Text-to-Speech Transformer in TensorFlow 2</p>
 </h2>
 
-Implementation of a non-autoregressive Transformer based neural network for Text-to-Speech (TTS). <br>
+Implementation of a **COMMENTED** non-autoregressive Transformer based neural network for Text-to-Speech (TTS). <br>
 This repo is based on the following papers:
 - [Neural Speech Synthesis with Transformer Network](https://arxiv.org/abs/1809.08895)
 - [FastSpeech: Fast, Robust and Controllable Text to Speech](https://arxiv.org/abs/1905.09263)
+
+
+this is a fork of as-ideas repo
 
 Our pre-trained LJSpeech models are compatible with the pre-trained vocoders from:
 - [WaveRNN](https://github.com/fatchord/WaveRNN)
