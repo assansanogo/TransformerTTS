@@ -579,7 +579,9 @@ class DecoderPrenet(tf.keras.layers.Layer):
 
 
 class Postnet(tf.keras.layers.Layer):
-    
+    '''
+    This Layer ids responsible of the Mel graph reconstruction
+    '''
     def __init__(self, mel_channels: int,
                  conv_filters: int,
                  conv_layers: int,
@@ -590,7 +592,8 @@ class Postnet(tf.keras.layers.Layer):
         
         self.mel_channels = mel_channels
         
-        self.stop_linear = tf.keras.layers.Dense(3)
+        self.stop_linear = tf.keras.layers.Dense(3) # linear projection to predict parameters (mean, log scale, mixture
+                                                    # weight) for each mixture component
         
         self.conv_blocks = CNNResNorm(out_size=mel_channels,
                                       kernel_size=kernel_size,
@@ -603,8 +606,13 @@ class Postnet(tf.keras.layers.Layer):
         
         self.add_layer = tf.keras.layers.Add()
     
-    def call(self, x, training):
+    def call(self, x, training): 
+        #1. mel_linear
+        
+        #2. stop  position
         stop = self.stop_linear(x)
+        
+        #3. mel graph  (residual 5-convolutions) 
         conv_out = self.conv_blocks(x, training=training)
         return {
             'mel_linear': x,
@@ -623,7 +631,7 @@ class DurationPredictor(tf.keras.layers.Layer):
                  dense_activation: str,
                  **kwargs):
         
-        super(DurationPredictor, self).__init__(**kwargs)
+        super(DurationPredictor, self).__init__(**kwargs) # initialize the parent class (=keras.layers.Layer)
         
         self.conv_blocks = CNNResNorm(out_size=model_dim,
                                       kernel_size=kernel_size,
@@ -638,7 +646,10 @@ class DurationPredictor(tf.keras.layers.Layer):
                                             bias_initializer=tf.keras.initializers.Constant(value=1))
     
     def call(self, x, training):
+        #1. residual convolutions
         x = self.conv_blocks(x, training=training)
+        
+        #2. linear output to predict the text duration
         x = self.linear(x)
         return x
 
@@ -667,30 +678,41 @@ class Expand(tf.keras.layers.Layer):
     
     def call(self, x, dimensions):
         
-        # reduce the dimensions
+        #1. reduce the dimensions
         dimensions = tf.squeeze(dimensions, axis=-1)
-        # round the dimensiosn to the next int
+        
+        #2. round the dimensiosn to the next int
         dimensions = tf.cast(tf.math.round(dimensions), tf.int32)
-        # x is of shape (batch_size,seq_len...)
+        
+        #3. x is of shape (batch_size,seq_len...)
         batch_size = tf.shape(x)[0]
         seq_len = tf.shape(x)[1]
         
         
-        # build masks from dimensions
+        #4. build masks from dimensions
         max_dim = tf.math.reduce_max(dimensions)
         tot_dim = tf.math.reduce_sum(dimensions)
         
         
+        # reshape the vector of ones of length tot_dim into len(dimensions) rows
+        
         index_masks = tf.RaggedTensor.from_row_lengths(tf.ones(tot_dim), tf.reshape(dimensions, [-1])).to_tensor()
+        # reshape into batch_size, seq_len * max_dim
         index_masks = tf.cast(tf.reshape(index_masks, (batch_size, seq_len * max_dim)), tf.float32)
+        
+        # find the number of non zeros entries
         non_zeros = seq_len * max_dim - tf.reduce_sum(max_dim - dimensions, axis=1)
         
-        # stack and mask
-        tiled = tf.tile(x, [1, 1, max_dim])
+        #5. stack and mask
+        # stack on the last dimension (maxdim) max_dim times the vector x (batch_size, seq_len, model_dim)
+        tiled = tf.tile(x, [1, 1, max_dim]) 
         
+        #6. reshape
         reshaped = tf.reshape(tiled, (batch_size, seq_len * max_dim, self.model_dimension))
         
+        # multiply the reshaped x by the mask
         mask_reshape = tf.multiply(reshaped, index_masks[:, :, tf.newaxis])
         
+        # keep only the tensor where seq_len * max_dim)>0
         ragged = tf.RaggedTensor.from_row_lengths(mask_reshape[index_masks > 0], non_zeros)
         return ragged.to_tensor()
