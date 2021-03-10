@@ -4,6 +4,12 @@ from model.transformer_utils import positional_encoding, scaled_dot_product_atte
 
 
 class CNNResNorm(tf.keras.layers.Layer):
+    '''
+    custom layer with conv1D + Activations + Normalisation (layer or batch)
+    parameterized on types of  activations  (the last can be sigmoid/softmax) 
+    when the last is reLu
+    '''
+    
     def __init__(self,
                  out_size: int,
                  n_layers: int,
@@ -14,6 +20,7 @@ class CNNResNorm(tf.keras.layers.Layer):
                  padding: str,
                  normalization: str,
                  **kwargs):
+        
         super(CNNResNorm, self).__init__(**kwargs)
         self.convolutions = [tf.keras.layers.Conv1D(filters=hidden_size,
                                                     kernel_size=kernel_size,
@@ -47,7 +54,10 @@ class CNNResNorm(tf.keras.layers.Layer):
 
 
 class FFNResNorm(tf.keras.layers.Layer):
-    
+    '''
+    custom layer with Dense + Activations + Normalisation (layer only) + DropOut
+    all activations are of type 'relu'
+    '''
     def __init__(self,
                  model_dim: int,
                  dense_hidden_units: int,
@@ -77,23 +87,31 @@ class HeadDrop(tf.keras.layers.Layer):
         super(HeadDrop, self).__init__(**kwargs)
     
     def call(self, batch, training: bool, drop_n_heads: int):
+        
         if not training or (drop_n_heads == 0):
             return batch
+        
         if len(tf.shape(batch)) != 4:
             raise Exception('attention values must be 4 dimensional')
-        batch_size = tf.shape(batch)[0]
+        
+        batch_size = tf.shape(batch)[0]  # shape ==4 (batch_size, head_n,
         head_n = tf.shape(batch)[1]
+        
         if head_n == 1:
-            return batch
+            return batch # if 1 head return the batch as it was defined (1 head = default)
+        
         # assert drop_n_heads < head_n, 'drop_n_heads must less than number of heads'
-        keep_head_batch = tf.TensorArray(tf.float32, size=batch_size)
-        keep_mask = tf.concat([tf.ones(head_n - drop_n_heads), tf.zeros(drop_n_heads)], axis=0)
+        keep_head_batch = tf.TensorArray(tf.float32, size=batch_size) # creates an array of size (batch_size)
+        keep_mask = tf.concat([tf.ones(head_n - drop_n_heads), tf.zeros(drop_n_heads)], axis=0) # mask of shape : 111110000 if head_n=9 & drop_n_heads=4
+        
         for i in range(batch_size):
-            t = tf.random.shuffle(keep_mask)
-            keep_head_batch = keep_head_batch.write(i, t)
-        keep_head_batch = keep_head_batch.stack()
-        keep_head_batch = keep_head_batch[:, :, tf.newaxis, tf.newaxis]
-        return batch * keep_head_batch * tf.cast(head_n / (head_n - drop_n_heads), tf.float32)
+            t = tf.random.shuffle(keep_mask) # shuffle the mask  to alternate the switched-off heads
+            keep_head_batch = keep_head_batch.write(i, t) # populate the keep_head_batch with the randomized switch off heads for each sample inside 1 batch
+        
+        keep_head_batch = keep_head_batch.stack() # after writing elements need to stack (1.write, 2.stack)
+        keep_head_batch = keep_head_batch[:, :, tf.newaxis, tf.newaxis] # expand of 2 axis
+        return batch * keep_head_batch * tf.cast(head_n / (head_n - drop_n_heads), tf.float32) # multiply the batch by the dropped head mask 
+                                                                                               # and we correct by a factor = tot_head/working heads
 
 
 class MultiHeadAttention(tf.keras.layers.Layer):
