@@ -3,11 +3,21 @@ import tensorflow as tf
 
 
 def get_angles(pos, i, model_dim):
+    '''
+    returns triangular based angles (see paper)
+    '''
+    #angles (cf paper)
     angle_rates = 1 / np.power(10000, (2 * (i//2)) / np.float32(model_dim))
+    
+    #return positional angles
     return pos * angle_rates
 
 
 def positional_encoding(position, model_dim):
+    '''
+    return positional embeddings (sin/cos)
+    '''
+    
     angle_rads = get_angles(np.arange(position)[:, np.newaxis], np.arange(model_dim)[np.newaxis, :], model_dim)
     
     # apply sin to even indices in the array; 2i
@@ -22,7 +32,7 @@ def positional_encoding(position, model_dim):
 
 
 def scaled_dot_product_attention(q, k, v, mask):
-    """ Calculate the attention weights.
+  """ Calculate the attention weights.
   q, k, v must have matching leading dimensions.
   k, v must have matching penultimate dimension, i.e.: seq_len_k = seq_len_v.
   The mask has different shapes depending on its type(padding or look ahead)
@@ -59,16 +69,27 @@ def scaled_dot_product_attention(q, k, v, mask):
 
 
 def create_encoder_padding_mask(seq):
+    '''
+    create mask for the sequence (when the value is zero)
+    '''
+    
     seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
-    return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, y, x)
+    return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, 1, y)
 
 
 def create_mel_padding_mask(seq):
+    '''
+    create mask for the sequence (when the value is zero)
+    '''
     seq = tf.reduce_sum(tf.math.abs(seq), axis=-1)
     seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
-    return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, y, x)
+    return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, 1, y)
 
 
 def create_look_ahead_mask(size):
+    '''
+    create lookahead mask for the sequence (when the value is zero)
+    '''
+    # superior triangular matrix
     mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
     return mask
