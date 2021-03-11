@@ -18,7 +18,16 @@ def positional_encoding(position, model_dim):
     return positional embeddings (sin/cos)
     '''
     
-    angle_rads = get_angles(np.arange(position)[:, np.newaxis], np.arange(model_dim)[np.newaxis, :], model_dim)
+    # if 
+    # position = 5
+    # model_dime = 10
+    # angle_rads shape : (5,10)
+    # pos_encoding shape : (1,5,10)
+    
+    
+    angle_rads = get_angles(np.arange(position)[:, np.newaxis], 
+                            np.arange(model_dim)[np.newaxis, :], 
+                            model_dim)
     
     # apply sin to even indices in the array; 2i
     angle_rads[:, 0::2] = np.sin(angle_rads[:, 0::2])
@@ -28,6 +37,7 @@ def positional_encoding(position, model_dim):
     
     pos_encoding = angle_rads[np.newaxis, ...]
     
+    # positional encoding (float)
     return tf.cast(pos_encoding, dtype=tf.float32)
 
 
@@ -60,7 +70,7 @@ def scaled_dot_product_attention(q, k, v, mask):
         scaled_attention_logits += mask * -1e9
     
     # softmax is normalized on the last axis (seq_len_k) so that the scores
-    # add up to 1.
+    # add up to 1. ( = normalization)
     attention_weights = tf.nn.softmax(scaled_attention_logits, axis=-1)  # (..., seq_len_q, seq_len_k)
     
     output = tf.matmul(attention_weights, v)  # (..., seq_len_q, depth_v)
@@ -72,8 +82,9 @@ def create_encoder_padding_mask(seq):
     '''
     create mask for the sequence (when the value is zero)
     '''
-    
+    #returns mask of 1111, when seq = 0
     seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
+    
     return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, 1, y)
 
 
@@ -81,14 +92,17 @@ def create_mel_padding_mask(seq):
     '''
     create mask for the sequence (when the value is zero)
     '''
+    # sum the sequence according to the last dimension
     seq = tf.reduce_sum(tf.math.abs(seq), axis=-1)
+    
+    #returns mask of 1111, when seq = 0
     seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
     return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, 1, y)
 
 
 def create_look_ahead_mask(size):
     '''
-    create lookahead mask for the sequence (when the value is zero)
+    create lookahead mask for the sequence
     '''
     # superior triangular matrix
     mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
