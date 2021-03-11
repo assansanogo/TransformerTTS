@@ -5,10 +5,16 @@ def new_scaled_crossentropy(index=2, scaling=1.0):
     """
     Returns masked crossentropy with extra scaling:
     Scales the loss for given stop_index by stop_scaling
+    
+    
+    if there are 2 classes :
+    zer =  tf.zeros((1,9,2))   (y_pred)
+    target = tf.ones((1,9))*0.5  (y_true)
+    tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)(y_pred=zer,y_true=target)
     """
     
     def masked_crossentropy(targets: tf.Tensor, logits: tf.Tensor) -> tf.Tensor:
-        
+        # misleading name
         crossentropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         #1 when target =0
         padding_mask = tf.math.equal(targets, 0)
@@ -29,7 +35,7 @@ def new_scaled_crossentropy(index=2, scaling=1.0):
 
 
 def masked_crossentropy(targets: tf.Tensor, logits: tf.Tensor) -> tf.Tensor:
-    
+    # misleading name
     # normal scc
     crossentropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
     # turn the mask into 1111 000 (1 where target and mask_value are different)
