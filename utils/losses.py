@@ -99,5 +99,6 @@ def weighted_sum_losses(targets, pred, loss_functions, coeffs):
     for i in range(len(loss_functions)):
         loss = loss_functions[i](targets[i], pred[i])
         loss_vals.append(loss)
+        #weighted sum
         total_loss += coeffs[i] * loss
     return total_loss, loss_vals
