@@ -65,6 +65,9 @@ def scaled_dot_product_attention(q, k, v, mask):
     dk = tf.cast(tf.shape(k)[-1], tf.float32)
     scaled_attention_logits = matmul_qk / tf.math.sqrt(dk)
     
+    # The attention mask is an optional argument used when batching sequences together. 
+    # This argument indicates to the model which tokens should be attended to, and which should not.
+    
     # add the mask to the scaled tensor.
     if mask is not None:
         scaled_attention_logits += mask * -1e9
@@ -80,7 +83,7 @@ def scaled_dot_product_attention(q, k, v, mask):
 
 def create_encoder_padding_mask(seq):
     '''
-    create mask for the sequence (when the value is zero)
+    create mask for the sequence (when the value is zero after padding)
     '''
     #returns mask of 1111, when seq = 0
     seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
@@ -91,6 +94,7 @@ def create_encoder_padding_mask(seq):
 def create_mel_padding_mask(seq):
     '''
     create mask for the sequence (when the value is zero)
+    
     '''
     # sum the sequence according to the last dimension
     seq = tf.reduce_sum(tf.math.abs(seq), axis=-1)
